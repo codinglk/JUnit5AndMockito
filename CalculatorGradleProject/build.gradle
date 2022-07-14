@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group 'com.codinglk'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+//    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0-M1'
+//    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.9.0-M1'
+//    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0-M1'
+//    Instead of above dependencies we can add below dependency which contains above all dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0-M1'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging.showStandardStreams=true
+}
