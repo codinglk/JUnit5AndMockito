@@ -1,20 +1,34 @@
 package com.codinglk.estore.service;
 
+import com.codinglk.estore.data.UsersRepository;
 import com.codinglk.estore.model.User;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * @author codinglk
  */
+@ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
 
-    UserService userService;
+    @InjectMocks
+    UserServiceImpl userService;
+
+    @Mock
+    UsersRepository usersRepository;
+    @Mock
+    EmailVerificationServiceImpl emailVerificationService;
+
     String firstName;
     String lastName;
     String email;
@@ -23,7 +37,6 @@ public class UserServiceTest {
 
     @BeforeEach
     void init(){
-        userService = new UserServiceImpl();
         firstName = "Lalit";
         lastName  = "Kumar";
         email = "test@test.com";
@@ -35,6 +48,7 @@ public class UserServiceTest {
     @Test
     void testCreateUser_whenUserDetailsProvided_returnsUserObject() {
         // Arrange
+        Mockito.when(usersRepository.save(any(User.class))).thenReturn(true);
 
         // Act
         User user = userService.createUser(firstName, lastName, email, password, repeatPassword);
@@ -45,6 +59,63 @@ public class UserServiceTest {
         assertEquals(lastName, user.getLastName(), "User's last name is incorrect");
         assertEquals(email, user.getEmail(), "User's email is incorrect");
         assertNotNull(user.getUserId(), "User Id is missing");
+//        Mockito.verify(usersRepository, times(1)).save(any(User.class));
+        Mockito.verify(usersRepository).save(any(User.class)); // times(1) is the default value, so we can remove it
+    }
+
+    @DisplayName("If save() method causes RuntimeException, a UserServiceException is thrown")
+    @Test
+    void testCreateUser_whenSaveMethodThrowsException_thenThrowsUserServiceException(){
+        // Arrange
+        when(usersRepository.save(any(User.class))).thenThrow(RuntimeException.class);
+
+        // Act & Assert
+        assertThrows(UserServiceException.class, ()->{
+            userService.createUser(firstName, lastName, email, password, repeatPassword);
+        }, "Should have thrown UserServiceException instead");
+
+        // Assert
+
+
+    }
+
+    @DisplayName("If Email Notification Service Thrown, a UserServiceException is thrown")
+    @Test
+    void testCreateUser_whenEmailNotificationExceptionThrown_thenThrowsUserServiceException(){
+        // Arrange
+        when(usersRepository.save(any(User.class))).thenReturn(true);
+
+        // stub void methods
+        doThrow(EmailNotificationServiceException.class)
+                .when(emailVerificationService).scheduleEmailConfirmation(any(User.class));
+
+//        doNothing().when(emailVerificationService).scheduleEmailConfirmation(any(User.class));
+
+        // Act & Assert
+        assertThrows(UserServiceException.class, ()->{
+            userService.createUser(firstName, lastName, email, password, repeatPassword);
+        }, "Should have thrown UserServiceException instead");
+
+        // Assert
+        verify(emailVerificationService, times(1))
+                .scheduleEmailConfirmation(any(User.class));
+    }
+
+    @DisplayName("Schedule Email Confirmation is executed")
+    @Test
+    void testCreateUser_whenUserCreated_scheduleEmailConfirmation(){
+        // Arrange
+        when(usersRepository.save(any(User.class))).thenReturn(true);
+
+        doCallRealMethod().when(emailVerificationService)
+                .scheduleEmailConfirmation(any(User.class));
+
+        // Act
+        userService.createUser(firstName, lastName, email, password, repeatPassword);
+
+        // Assert
+        verify(emailVerificationService, times(1))
+                .scheduleEmailConfirmation(any(User.class));
     }
 
     @DisplayName("Empty First Name causes correct exception")

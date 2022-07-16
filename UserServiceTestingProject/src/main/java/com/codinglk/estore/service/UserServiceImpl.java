@@ -1,5 +1,6 @@
 package com.codinglk.estore.service;
 
+import com.codinglk.estore.data.UsersRepository;
 import com.codinglk.estore.model.User;
 
 import java.util.UUID;
@@ -8,6 +9,16 @@ import java.util.UUID;
  * @author codinglk
  */
 public class UserServiceImpl implements UserService {
+
+    UsersRepository usersRepository;
+    EmailVerificationService emailVerificationService;
+
+    public UserServiceImpl(UsersRepository usersRepository, EmailVerificationService emailVerificationService) {
+        this.usersRepository = usersRepository;
+        this.emailVerificationService = emailVerificationService;
+    }
+
+
     @Override
     public User createUser(String firstName,
                            String lastName,
@@ -23,7 +34,25 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("User's last name is empty");
         }
 
-        return new User(firstName, lastName, email, UUID.randomUUID().toString());
+        User user = new User(firstName, lastName, email, UUID.randomUUID().toString());
+        boolean isUserCreated;
+        try {
+            isUserCreated = usersRepository.save(user);
+        }catch(RuntimeException ex){
+            throw new UserServiceException(ex.getMessage());
+        }
+
+        if(!isUserCreated) {
+            throw new UserServiceException("Could not create user");
+        }
+
+        try {
+            emailVerificationService.scheduleEmailConfirmation(user);
+        }catch(RuntimeException ex){
+            throw new UserServiceException(ex.getMessage());
+        }
+
+        return user;
 
     }
 }
